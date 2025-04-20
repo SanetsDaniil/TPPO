@@ -11,6 +11,7 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
+#include <propertymanager.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -30,9 +31,12 @@ private slots:
     void showTenantList();
     void on_addPropertyButton_clicked();
     void on_addTenantButton_clicked();
-
 private:
     void setupToolbar();
+    QComboBox *editPropertyComboBox;
+    QVector<Property> currentProperties;
+    void loadPropertiesToComboBox();
+    void fillPropertyFieldsFromSelected();
 
     Ui::MainWindow *ui;
 

@@ -67,6 +67,10 @@ void MainWindow::showPropertyForm()
     QWidget *formWidget = new QWidget(this);
     QVBoxLayout *layout = new QVBoxLayout(formWidget);
 
+    editPropertyComboBox = new QComboBox(this);
+    layout->addWidget(editPropertyComboBox);
+    connect(editPropertyComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::fillPropertyFieldsFromSelected);
     QLabel *label1 = new QLabel("Название недвижимости:");
     propertyNameLineEdit = new QLineEdit();
     QLabel *label2 = new QLabel("Тип недвижимости:");
@@ -97,7 +101,7 @@ void MainWindow::showPropertyForm()
 
     formWidget->setLayout(layout);
     setCentralWidget(formWidget);
-
+    loadPropertiesToComboBox();
 }
 
 void MainWindow::showTenantForm()
@@ -141,8 +145,7 @@ void MainWindow::showTenantList()
 }
 
 
-void MainWindow::on_addPropertyButton_clicked()
-{
+void MainWindow::on_addPropertyButton_clicked() {
     Property property;
     property.name = propertyNameLineEdit->text();
     property.type = propertyTypeComboBox->currentText();
@@ -151,12 +154,22 @@ void MainWindow::on_addPropertyButton_clicked()
     property.price = propertyPriceLineEdit->text().toDouble();
 
     PropertyManager manager;
-    if (manager.addProperty(property)) {
-        QMessageBox::information(this, "Успех", "Недвижимость добавлена!");
+
+    int selectedIndex = editPropertyComboBox->currentIndex();
+    if (selectedIndex == 0) {
+        // Добавляем новую
+        if (manager.addProperty(property)) {
+            QMessageBox::information(this, "Успех", "Недвижимость добавлена.");
+        }
     } else {
-        QMessageBox::warning(this, "Ошибка", "Не удалось добавить недвижимость.");
+        // Обновляем существующую
+        property.id = currentProperties[selectedIndex - 1].id;
+        if (manager.removeProperty(property.id) && manager.addProperty(property)) {
+            QMessageBox::information(this, "Успех", "Недвижимость обновлена.");
+        }
     }
 
+    loadPropertiesToComboBox();
 }
 
 void MainWindow::on_addTenantButton_clicked()
@@ -173,6 +186,38 @@ void MainWindow::on_addTenantButton_clicked()
     } else {
         QMessageBox::warning(this, "Ошибка", "Не удалось добавить арендатора.");
     }
-
 }
 
+void MainWindow::loadPropertiesToComboBox() {
+    PropertyManager manager;
+    currentProperties = manager.getAllProperties();
+
+    editPropertyComboBox->clear();
+    editPropertyComboBox->addItem("Новая недвижимость");
+
+    for (const Property &p : currentProperties) {
+        editPropertyComboBox->addItem(p.name);
+    }
+
+    editPropertyComboBox->setCurrentIndex(0);
+    //clearPropertyFormFields(); // твоя существующая функция, если она есть
+}
+
+void MainWindow::fillPropertyFieldsFromSelected() {
+    int index = editPropertyComboBox->currentIndex();
+    if (index == 0) {
+        // Новая недвижимость
+        propertyNameLineEdit->clear();
+        propertyTypeComboBox->setCurrentIndex(0);
+        propertyLocationLineEdit->clear();
+        propertyStatusComboBox->setCurrentIndex(0);
+        propertyPriceLineEdit->clear();
+    } else if (index > 0 && index - 1 < currentProperties.size()) {
+        const Property &p = currentProperties[index - 1];
+        propertyNameLineEdit->setText(p.name);
+        propertyTypeComboBox->setCurrentText(p.type);
+        propertyLocationLineEdit->setText(p.location);
+        propertyStatusComboBox->setCurrentText(p.status);
+        propertyPriceLineEdit->setText(QString::number(p.price));
+    }
+}

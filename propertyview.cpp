@@ -87,3 +87,4 @@ bool PropertyView::deletePropertyFromDatabase(int propertyId) {
         return false;
     }
 }
+
