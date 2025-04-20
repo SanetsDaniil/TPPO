@@ -22,7 +22,7 @@ void TenantView::loadTenants() {
 
     table->setRowCount(tenants.size());
     table->setColumnCount(5); // Количество столбцов
-    table->setHorizontalHeaderLabels({"ID", "Имя арендатора", "ID недвижимости", "Дата начала", "Дата окончания"});
+    table->setHorizontalHeaderLabels({"ID", "Имя арендатора", "ID недвижимости", "Стоимость аренды", "Дата начала", "Дата окончания"});
 
     // Ожидаем, что таблица будет растягиваться, так что нужно немного настроить заголовки
     table->horizontalHeader()->setStretchLastSection(true);
@@ -31,6 +31,7 @@ void TenantView::loadTenants() {
         table->setItem(i, 0, new QTableWidgetItem(QString::number(tenants[i].id)));
         table->setItem(i, 1, new QTableWidgetItem(tenants[i].name));
         table->setItem(i, 2, new QTableWidgetItem(QString::number(tenants[i].propertyId)));
+        table->setItem(i, 3, new QTableWidgetItem(tenants[i].monthCost));
         table->setItem(i, 3, new QTableWidgetItem(tenants[i].leaseStart.toString("yyyy-MM-dd")));
         table->setItem(i, 4, new QTableWidgetItem(tenants[i].leaseEnd.toString("yyyy-MM-dd")));
     }

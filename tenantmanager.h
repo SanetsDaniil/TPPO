@@ -11,6 +11,7 @@ struct Tenant {
     int id;
     QString name;
     int propertyId;
+    double monthCost;
     QDate leaseStart;
     QDate leaseEnd;
 };

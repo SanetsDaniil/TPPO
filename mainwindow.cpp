@@ -113,10 +113,12 @@ void MainWindow::showTenantForm()
     tenantNameLineEdit = new QLineEdit();
     QLabel *label7 = new QLabel("ID недвижимости:");
     tenantPropertyIdLineEdit = new QLineEdit();
-    QLabel *label8 = new QLabel("Дата начала аренды:");
+    QLabel *label8 = new QLabel("Стоимость аренды");
+    monthCost = new QLineEdit();
+    QLabel *label9 = new QLabel("Дата начала аренды:");
     leaseStartDateEdit = new QDateEdit();
     leaseStartDateEdit->setCalendarPopup(true);
-    QLabel *label9 = new QLabel("Дата окончания аренды:");
+    QLabel *label10 = new QLabel("Дата окончания аренды:");
     leaseEndDateEdit = new QDateEdit();
     leaseEndDateEdit->setCalendarPopup(true);
     QPushButton *addTenantButton = new QPushButton("Добавить арендатора");
@@ -126,8 +128,10 @@ void MainWindow::showTenantForm()
     layout->addWidget(label7);
     layout->addWidget(tenantPropertyIdLineEdit);
     layout->addWidget(label8);
-    layout->addWidget(leaseStartDateEdit);
+    layout->addWidget(monthCost);
     layout->addWidget(label9);
+    layout->addWidget(leaseStartDateEdit);
+    layout->addWidget(label10);
     layout->addWidget(leaseEndDateEdit);
     layout->addWidget(addTenantButton);
 

@@ -50,6 +50,7 @@ private:
     // Виджеты для формы арендатора
     QLineEdit *tenantNameLineEdit;
     QLineEdit *tenantPropertyIdLineEdit;
+    QLineEdit *monthCost;
     QDateEdit *leaseStartDateEdit;
     QDateEdit *leaseEndDateEdit;
 };
