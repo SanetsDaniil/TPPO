@@ -1,0 +1,11 @@
+release/database.o
+release/main.o
+release/mainwindow.o
+release/propertymanager.o
+release/propertyview.o
+release/tenantmanager.o
+release/tenantview.o
+release/transactionview.o
+release/moc_mainwindow.o
+release/moc_propertyview.o
+release/moc_tenantview.o

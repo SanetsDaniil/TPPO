@@ -1,0 +1,53 @@
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QToolBar>
+#include <QAction>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QPushButton>
+#include <QDateEdit>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QMessageBox>
+
+QT_BEGIN_NAMESPACE
+namespace Ui { class MainWindow; }
+QT_END_NAMESPACE
+
+class MainWindow : public QMainWindow {
+    Q_OBJECT
+
+public:
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+
+private slots:
+    void showPropertyList();
+    void showPropertyForm();
+    void showTenantForm();
+    void showTenantList();
+    void on_addPropertyButton_clicked();
+    void on_addTenantButton_clicked();
+
+private:
+    void setupToolbar();
+
+    Ui::MainWindow *ui;
+
+    // Виджеты для формы недвижимости
+    QLineEdit *propertyNameLineEdit;
+    QComboBox *propertyTypeComboBox;
+    QLineEdit *propertyLocationLineEdit;
+    QComboBox *propertyStatusComboBox;
+    QLineEdit *propertyPriceLineEdit;
+
+    // Виджеты для формы арендатора
+    QLineEdit *tenantNameLineEdit;
+    QLineEdit *tenantPropertyIdLineEdit;
+    QDateEdit *leaseStartDateEdit;
+    QDateEdit *leaseEndDateEdit;
+};
+
+#endif // MAINWINDOW_H

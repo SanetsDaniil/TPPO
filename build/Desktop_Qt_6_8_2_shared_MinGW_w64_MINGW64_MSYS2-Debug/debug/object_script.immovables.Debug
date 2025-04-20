@@ -1,0 +1,11 @@
+debug/database.o
+debug/main.o
+debug/mainwindow.o
+debug/propertymanager.o
+debug/propertyview.o
+debug/tenantmanager.o
+debug/tenantview.o
+debug/transactionview.o
+debug/moc_mainwindow.o
+debug/moc_propertyview.o
+debug/moc_tenantview.o
