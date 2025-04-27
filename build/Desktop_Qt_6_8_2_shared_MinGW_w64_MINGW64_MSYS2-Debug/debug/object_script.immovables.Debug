@@ -5,7 +5,9 @@ debug/propertymanager.o
 debug/propertyview.o
 debug/tenantmanager.o
 debug/tenantview.o
+debug/transactionmanager.o
 debug/transactionview.o
 debug/moc_mainwindow.o
 debug/moc_propertyview.o
 debug/moc_tenantview.o
+debug/moc_transactionview.o

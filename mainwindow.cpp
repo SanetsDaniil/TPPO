@@ -5,6 +5,9 @@
 #include "tenantmanager.h"
 #include "tenantview.h"
 #include "database.h"
+#include "transactionview.h"
+#include "transactionmanager.h"
+
 
 #include <QToolBar>
 #include <QAction>
@@ -39,17 +42,22 @@ void MainWindow::setupToolbar()
     QAction *addTenantAction = new QAction("Добавить арендатора", this);
     QAction *addPropertyAction = new QAction("Добавить недвижимость", this);
     QAction *viewTenantAction = new QAction("Арендаторы", this);
+    QAction *viewTransactionAction = new QAction("Сделки", this);
+    QAction *addTransactionAction = new QAction("Новая сделка", this);
 
     toolbar->addAction(viewPropertiesAction);
     toolbar->addAction(viewTenantAction);
     toolbar->addAction(addTenantAction);
     toolbar->addAction(addPropertyAction);
+    toolbar->addAction(viewTransactionAction);
+    toolbar->addAction(addTransactionAction);
 
     connect(viewPropertiesAction, &QAction::triggered, this, &MainWindow::showPropertyList);
     connect(viewTenantAction,&QAction::triggered, this, &MainWindow::showTenantList);
     connect(addTenantAction, &QAction::triggered, this, &MainWindow::showTenantForm);
     connect(addPropertyAction, &QAction::triggered, this, &MainWindow::showPropertyForm);
-
+    connect(viewTransactionAction, &QAction::triggered, this, &MainWindow::showTransactionList);
+    connect(addTransactionAction, &QAction::triggered, this, &MainWindow::showTransactionForm);
 }
 
 void MainWindow::showPropertyList()
@@ -181,6 +189,7 @@ void MainWindow::on_addTenantButton_clicked()
     Tenant tenant;
     tenant.name = tenantNameLineEdit->text();
     tenant.propertyId = tenantPropertyIdLineEdit->text().toInt();
+    tenant.monthCost = monthCost->text().toDouble();
     tenant.leaseStart = leaseStartDateEdit->date();
     tenant.leaseEnd = leaseEndDateEdit->date();
 
@@ -225,3 +234,96 @@ void MainWindow::fillPropertyFieldsFromSelected() {
         propertyPriceLineEdit->setText(QString::number(p.price));
     }
 }
+
+void MainWindow::showTransactionList() {
+    auto *view = new TransactionView(this);
+    setCentralWidget(view);
+}
+
+void MainWindow::showTransactionForm() {
+    QWidget *form = new QWidget(nullptr, Qt::Window);  // отдельное окно
+    form->setWindowTitle("Добавить/Изменить сделку");
+    QVBoxLayout *layout = new QVBoxLayout(form);
+
+    // 1) Выбор недвижимости
+    layout->addWidget(new QLabel("Недвижимость:", form));
+    transactionPropertyCombo = new QComboBox(form);
+    {
+        PropertyManager pm;
+        auto props = pm.getAllProperties();
+        for (auto &p : props) {
+            transactionPropertyCombo->addItem(QString("%1 (ID:%2)").arg(p.name).arg(p.id), p.id);
+        }
+    }
+    layout->addWidget(transactionPropertyCombo);
+
+    // 2) Выбор арендатора (может быть пусто при продаже)
+    layout->addWidget(new QLabel("Арендатор (опционально):", form));
+    transactionTenantCombo = new QComboBox(form);
+    transactionTenantCombo->addItem("— нет —", QVariant(0));
+    {
+        TenantManager tm;
+        auto tenants = tm.getAllTenants();
+        for (auto &t : tenants) {
+            transactionTenantCombo->addItem(QString("%1 (ID:%2)").arg(t.name).arg(t.id), t.id);
+        }
+    }
+    layout->addWidget(transactionTenantCombo);
+
+    // 3) Тип сделки
+    layout->addWidget(new QLabel("Тип сделки:", form));
+    transactionTypeCombo = new QComboBox(form);
+    transactionTypeCombo->addItems({"Продажа", "Аренда"});
+    layout->addWidget(transactionTypeCombo);
+
+    // 4) Дата
+    layout->addWidget(new QLabel("Дата сделки:", form));
+    transactionDateEdit = new QDateEdit(QDate::currentDate(), form);
+    transactionDateEdit->setCalendarPopup(true);
+    layout->addWidget(transactionDateEdit);
+
+    // 5) Сумма
+    layout->addWidget(new QLabel("Сумма:", form));
+    transactionAmountEdit = new QLineEdit(form);
+    layout->addWidget(transactionAmountEdit);
+
+    // 6) Кнопка «Сохранить»
+    QPushButton *saveBtn = new QPushButton("Сохранить сделку", form);
+    layout->addWidget(saveBtn);
+    connect(saveBtn, &QPushButton::clicked,
+            this, &MainWindow::on_addTransactionButton_clicked);
+
+    form->setLayout(layout);
+    form->resize(300, 400);
+    form->show();
+}
+
+void MainWindow::on_addTransactionButton_clicked() {
+    // Собираем данные
+    Transaction t;
+    t.propertyId = transactionPropertyCombo->currentData().toInt();
+    t.tenantId   = transactionTenantCombo->currentData().toInt();
+    t.type       = transactionTypeCombo->currentText();
+    t.date       = transactionDateEdit->date();
+    t.amount     = transactionAmountEdit->text().toDouble();
+
+    // Валидация
+    if (t.propertyId <= 0) {
+        QMessageBox::warning(nullptr, "Ошибка", "Выберите недвижимость!");
+        return;
+    }
+    if (t.amount <= 0.0) {
+        QMessageBox::warning(nullptr, "Ошибка", "Введите корректную сумму сделки!");
+        return;
+    }
+
+    // Сохраняем
+    TransactionManager mgr;
+    if (!mgr.addTransaction(t)) {
+        QMessageBox::critical(nullptr, "Ошибка", "Не удалось сохранить сделку.");
+        return;
+    }
+
+    QMessageBox::information(nullptr, "Готово", "Сделка успешно сохранена.");
+}
+

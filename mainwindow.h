@@ -31,12 +31,16 @@ private slots:
     void showTenantList();
     void on_addPropertyButton_clicked();
     void on_addTenantButton_clicked();
+    void showTransactionList();
+    void showTransactionForm();               // Шаг 1.2: форма сделки
+    void on_addTransactionButton_clicked();   // Слот «Сохранить сделку»
 private:
     void setupToolbar();
     QComboBox *editPropertyComboBox;
     QVector<Property> currentProperties;
     void loadPropertiesToComboBox();
     void fillPropertyFieldsFromSelected();
+    void setupTransactionAction();
 
     Ui::MainWindow *ui;
 
@@ -53,6 +57,13 @@ private:
     QLineEdit *monthCost;
     QDateEdit *leaseStartDateEdit;
     QDateEdit *leaseEndDateEdit;
+
+    //Виджеты формы сделки
+    QComboBox   *transactionPropertyCombo;
+    QComboBox   *transactionTenantCombo;
+    QComboBox   *transactionTypeCombo;
+    QDateEdit   *transactionDateEdit;
+    QLineEdit   *transactionAmountEdit;
 };
 
 #endif // MAINWINDOW_H

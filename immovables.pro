@@ -16,6 +16,7 @@ SOURCES += \
     propertyview.cpp \
     tenantmanager.cpp \
     tenantview.cpp \
+    transactionmanager.cpp \
     transactionview.cpp
 
 HEADERS += \
@@ -25,6 +26,8 @@ HEADERS += \
     propertyview.h \
     tenantmanager.h \
     tenantview.h \
+    transaction.h \
+    transactionmanager.h \
     transactionview.h
 
 FORMS += \
