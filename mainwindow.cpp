@@ -9,10 +9,16 @@
 #include "transactionmanager.h"
 
 
-#include <QToolBar>
-#include <QAction>
+#include <QDialog>
+#include <QFormLayout>
 #include <QVBoxLayout>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QDateEdit>
+#include <QPushButton>
 #include <QMessageBox>
+
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -63,91 +69,127 @@ void MainWindow::setupToolbar()
 void MainWindow::showPropertyList()
 {
     PropertyView *view = new PropertyView(this);
-    QLineEdit *searchLineEdit = new QLineEdit(this);
-    searchLineEdit->setPlaceholderText("Поиск недвижимости...");
-    connect(searchLineEdit, &QLineEdit::textChanged, view, &PropertyView::filterProperties);
-    view->layout()->addWidget(searchLineEdit);  // Добавляем поле для поиска
     setCentralWidget(view);
 }
 
-void MainWindow::showPropertyForm()
-{
-    QWidget *formWidget = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(formWidget);
+void MainWindow::showPropertyForm() {
+    // Модальное окно
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("Добавить/Редактировать недвижимость");
+    QVBoxLayout *vlay = new QVBoxLayout(dlg);
+    QFormLayout  *form = new QFormLayout;
 
-    editPropertyComboBox = new QComboBox(this);
-    layout->addWidget(editPropertyComboBox);
-    connect(editPropertyComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MainWindow::fillPropertyFieldsFromSelected);
-    QLabel *label1 = new QLabel("Название недвижимости:");
-    propertyNameLineEdit = new QLineEdit();
-    QLabel *label2 = new QLabel("Тип недвижимости:");
-    propertyTypeComboBox = new QComboBox();
-    propertyTypeComboBox->addItems({"Квартира", "Дом", "Офис", "Склад"});
-    QLabel *label3 = new QLabel("Расположение:");
-    propertyLocationLineEdit = new QLineEdit();
-    QLabel *label4 = new QLabel("Статус:");
-    propertyStatusComboBox = new QComboBox();
-    propertyStatusComboBox->addItems({"Свободно", "Занято", "Продано"});
-    QLabel *label5 = new QLabel("Цена:");
-    propertyPriceLineEdit = new QLineEdit();
-    QPushButton *addButton = new QPushButton("Добавить недвижимость");
+    // Поля формы
+    QLineEdit   *nameEdit     = new QLineEdit(dlg);
+    QComboBox   *typeCombo    = new QComboBox(dlg);
+    typeCombo->addItems({"Квартира","Дом","Офис","Склад"});
+    QLineEdit   *locationEdit = new QLineEdit(dlg);
+    QComboBox   *statusCombo  = new QComboBox(dlg);
+    statusCombo->addItems({"Свободно","Занято","Продано"});
+    QLineEdit   *priceEdit    = new QLineEdit(dlg);
 
-    layout->addWidget(label1);
-    layout->addWidget(propertyNameLineEdit);
-    layout->addWidget(label2);
-    layout->addWidget(propertyTypeComboBox);
-    layout->addWidget(label3);
-    layout->addWidget(propertyLocationLineEdit);
-    layout->addWidget(label4);
-    layout->addWidget(propertyStatusComboBox);
-    layout->addWidget(label5);
-    layout->addWidget(propertyPriceLineEdit);
-    layout->addWidget(addButton);
+    form->addRow("Название", nameEdit);
+    form->addRow("Тип",      typeCombo);
+    form->addRow("Локация",  locationEdit);
+    form->addRow("Статус",   statusCombo);
+    form->addRow("Цена",     priceEdit);
+    vlay->addLayout(form);
 
-    connect(addButton, &QPushButton::clicked, this, &MainWindow::on_addPropertyButton_clicked);
+    QPushButton *saveBtn = new QPushButton("Сохранить", dlg);
+    vlay->addWidget(saveBtn);
 
-    formWidget->setLayout(layout);
-    setCentralWidget(formWidget);
-    loadPropertiesToComboBox();
+    dlg->setLayout(vlay);
+    dlg->resize(320, 260);
+
+    // При клике «Сохранить» собираем данные и сохраняем
+    connect(saveBtn, &QPushButton::clicked, this, [=]() {
+        Property p;
+        p.name     = nameEdit->text();
+        p.type     = typeCombo->currentText();
+        p.location = locationEdit->text();
+        p.status   = statusCombo->currentText();
+        p.price    = priceEdit->text().toDouble();
+
+        PropertyManager mgr;
+        if (!mgr.addProperty(p)) {
+            QMessageBox::warning(dlg, "Ошибка", "Не удалось сохранить недвижимость");
+        } else {
+            QMessageBox::information(dlg, "Готово", "Недвижимость сохранена");
+            dlg->accept();
+        }
+    });
+
+    dlg->exec();
 }
 
-void MainWindow::showTenantForm()
-{
-    QWidget *formWidget = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(formWidget);
+void MainWindow::on_addPropertyButton_clicked() {
+    // Просто вызываем форму
+    showPropertyForm();
+}
 
-    QLabel *label6 = new QLabel("Имя арендатора:");
-    tenantNameLineEdit = new QLineEdit();
-    QLabel *label7 = new QLabel("ID недвижимости:");
-    tenantPropertyIdLineEdit = new QLineEdit();
-    QLabel *label8 = new QLabel("Стоимость аренды");
-    monthCost = new QLineEdit();
-    QLabel *label9 = new QLabel("Дата начала аренды:");
-    leaseStartDateEdit = new QDateEdit();
-    leaseStartDateEdit->setCalendarPopup(true);
-    QLabel *label10 = new QLabel("Дата окончания аренды:");
-    leaseEndDateEdit = new QDateEdit();
-    leaseEndDateEdit->setCalendarPopup(true);
-    QPushButton *addTenantButton = new QPushButton("Добавить арендатора");
 
-    layout->addWidget(label6);
-    layout->addWidget(tenantNameLineEdit);
-    layout->addWidget(label7);
-    layout->addWidget(tenantPropertyIdLineEdit);
-    layout->addWidget(label8);
-    layout->addWidget(monthCost);
-    layout->addWidget(label9);
-    layout->addWidget(leaseStartDateEdit);
-    layout->addWidget(label10);
-    layout->addWidget(leaseEndDateEdit);
-    layout->addWidget(addTenantButton);
+void MainWindow::showTenantForm() {
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("Добавить/Редактировать арендатора");
+    QVBoxLayout *vlay = new QVBoxLayout(dlg);
+    QFormLayout  *form = new QFormLayout;
 
-    connect(addTenantButton, &QPushButton::clicked, this, &MainWindow::on_addTenantButton_clicked);
+    // Поля формы
+    QComboBox *typeCombo      = new QComboBox(dlg);
+    typeCombo->addItems({"Арендатор","Покупатель"});
+    QLineEdit *nameEdit       = new QLineEdit(dlg);
+    QComboBox *propertyCombo  = new QComboBox(dlg);
+    for (auto &p : PropertyManager().getAllProperties())
+        propertyCombo->addItem(QString("%1 (ID:%2)").arg(p.name).arg(p.id), p.id);
+    QLineEdit *costEdit       = new QLineEdit(dlg);
+    QDateEdit *startEdit      = new QDateEdit(QDate::currentDate(), dlg);
+    startEdit->setCalendarPopup(true);
+    QDateEdit *endEdit        = new QDateEdit(QDate::currentDate(), dlg);
+    endEdit->setCalendarPopup(true);
 
-    formWidget->setLayout(layout);
-    setCentralWidget(formWidget);
+    form->addRow("Тип",           typeCombo);
+    form->addRow("Имя",           nameEdit);
+    form->addRow("Недвижимость",  propertyCombo);
+    form->addRow("Стоимость",     costEdit);
+    form->addRow("Дата начала",   startEdit);
+    form->addRow("Дата окончания",endEdit);
+    vlay->addLayout(form);
 
+    QPushButton *saveBtn = new QPushButton("Сохранить", dlg);
+    vlay->addWidget(saveBtn);
+
+    dlg->setLayout(vlay);
+    dlg->resize(320, 300);
+
+    // Скрываем поле даты окончания для покупателей
+    connect(typeCombo, &QComboBox::currentTextChanged, dlg, [=](const QString &txt){
+        endEdit->setVisible(txt == "Арендатор");
+    });
+    endEdit->setVisible(typeCombo->currentText() == "Арендатор");
+
+    connect(saveBtn, &QPushButton::clicked, this, [=]() {
+        Tenant t;
+        t.type       = typeCombo->currentText();
+        t.name       = nameEdit->text();
+        t.propertyId = propertyCombo->currentData().toInt();
+        t.monthCost  = costEdit->text().toDouble();
+        t.leaseStart = startEdit->date();
+        t.leaseEnd   = (t.type == "Покупатель" ? QDate() : endEdit->date());
+
+        TenantManager mgr;
+        if (!mgr.addTenant(t)) {
+            QMessageBox::warning(dlg, "Ошибка", "Не удалось сохранить арендатора");
+        } else {
+            QMessageBox::information(dlg, "Готово", "Арендатор сохранён");
+            dlg->accept();
+        }
+    });
+
+    dlg->exec();
+}
+
+void MainWindow::on_addTenantButton_clicked() {
+    showTenantForm();
 }
 
 void MainWindow::showTenantList()
@@ -157,49 +199,6 @@ void MainWindow::showTenantList()
 }
 
 
-void MainWindow::on_addPropertyButton_clicked() {
-    Property property;
-    property.name = propertyNameLineEdit->text();
-    property.type = propertyTypeComboBox->currentText();
-    property.location = propertyLocationLineEdit->text();
-    property.status = propertyStatusComboBox->currentText();
-    property.price = propertyPriceLineEdit->text().toDouble();
-
-    PropertyManager manager;
-
-    int selectedIndex = editPropertyComboBox->currentIndex();
-    if (selectedIndex == 0) {
-        // Добавляем новую
-        if (manager.addProperty(property)) {
-            QMessageBox::information(this, "Успех", "Недвижимость добавлена.");
-        }
-    } else {
-        // Обновляем существующую
-        property.id = currentProperties[selectedIndex - 1].id;
-        if (manager.removeProperty(property.id) && manager.addProperty(property)) {
-            QMessageBox::information(this, "Успех", "Недвижимость обновлена.");
-        }
-    }
-
-    loadPropertiesToComboBox();
-}
-
-void MainWindow::on_addTenantButton_clicked()
-{
-    Tenant tenant;
-    tenant.name = tenantNameLineEdit->text();
-    tenant.propertyId = tenantPropertyIdLineEdit->text().toInt();
-    tenant.monthCost = monthCost->text().toDouble();
-    tenant.leaseStart = leaseStartDateEdit->date();
-    tenant.leaseEnd = leaseEndDateEdit->date();
-
-    TenantManager manager;
-    if (manager.addTenant(tenant)) {
-        QMessageBox::information(this, "Успех", "Арендатор добавлен!");
-    } else {
-        QMessageBox::warning(this, "Ошибка", "Не удалось добавить арендатора.");
-    }
-}
 
 void MainWindow::loadPropertiesToComboBox() {
     PropertyManager manager;

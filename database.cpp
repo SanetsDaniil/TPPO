@@ -10,7 +10,7 @@ DatabaseManager::DatabaseManager() {
      QSqlQuery query(db);
     bool ok = query.exec(
         "CREATE TABLE IF NOT EXISTS transactions ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "id INTEGER PRIMARY KEY, "
         "property_id INTEGER NOT NULL, "
         "tenant_id INTEGER, "
         "date DATE NOT NULL, "

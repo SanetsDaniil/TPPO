@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QTableWidget>
 #include <QPushButton>
+#include <QComboBox>
 #include "tenantmanager.h"
 
 class TenantView : public QWidget {
@@ -13,6 +14,13 @@ public:
     void loadTenants();
 private:
     QTableWidget *table;
+    QPushButton *deleteButton;
+    QLineEdit *nameFilterEdit;
+    QComboBox *typeFilterCombo;
+
+private slots:
+    void applyFilters();
+    void deleteTenant();
 };
 
 #endif // TENANTVIEW_H

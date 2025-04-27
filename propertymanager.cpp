@@ -4,7 +4,7 @@
 
 PropertyManager::PropertyManager() {
     QSqlQuery query(DatabaseManager::instance().getDatabase());
-    query.exec("CREATE TABLE IF NOT EXISTS properties (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, type TEXT, location TEXT, status TEXT, price REAL)");
+    query.exec("CREATE TABLE IF NOT EXISTS properties (id INTEGER PRIMARY KEY, name TEXT, type TEXT, location TEXT, status TEXT, price REAL)");
 }
 
 bool PropertyManager::addProperty(const Property& property) {

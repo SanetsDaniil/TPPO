@@ -14,6 +14,7 @@ struct Tenant {
     double monthCost;
     QDate leaseStart;
     QDate leaseEnd;
+    QString type;
 };
 
 class TenantManager {
