@@ -17,6 +17,7 @@
 #include <QDateEdit>
 #include <QPushButton>
 #include <QMessageBox>
+#include <QInputDialog>
 
 
 
@@ -131,62 +132,70 @@ void MainWindow::on_addPropertyButton_clicked() {
 void MainWindow::showTenantForm() {
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle("Добавить/Редактировать арендатора");
+
+    QFormLayout *form = new QFormLayout(dlg);
     QVBoxLayout *vlay = new QVBoxLayout(dlg);
-    QFormLayout  *form = new QFormLayout;
 
-    // Поля формы
-    QComboBox *typeCombo      = new QComboBox(dlg);
+    // 1) Тип
+    QComboBox *typeCombo = new QComboBox(dlg);
     typeCombo->addItems({"Арендатор","Покупатель"});
-    QLineEdit *nameEdit       = new QLineEdit(dlg);
-    QComboBox *propertyCombo  = new QComboBox(dlg);
-    for (auto &p : PropertyManager().getAllProperties())
-        propertyCombo->addItem(QString("%1 (ID:%2)").arg(p.name).arg(p.id), p.id);
-    QLineEdit *costEdit       = new QLineEdit(dlg);
-    QDateEdit *startEdit      = new QDateEdit(QDate::currentDate(), dlg);
-    startEdit->setCalendarPopup(true);
-    QDateEdit *endEdit        = new QDateEdit(QDate::currentDate(), dlg);
-    endEdit->setCalendarPopup(true);
+    form->addRow("Тип:", typeCombo);
 
-    form->addRow("Тип",           typeCombo);
-    form->addRow("Имя",           nameEdit);
-    form->addRow("Недвижимость",  propertyCombo);
-    form->addRow("Стоимость",     costEdit);
-    form->addRow("Дата начала",   startEdit);
-    form->addRow("Дата окончания",endEdit);
-    vlay->addLayout(form);
+    // 2) Личные данные
+    QLineEdit *nameEdit      = new QLineEdit(dlg);
+    QLineEdit *emailEdit     = new QLineEdit(dlg);
+    QDateEdit *birthDateEdit = new QDateEdit(QDate::currentDate(), dlg);
+    birthDateEdit->setCalendarPopup(true);
+    QLineEdit *phoneEdit     = new QLineEdit(dlg);
 
+    form->addRow("Имя:",           nameEdit);
+    form->addRow("Email:",         emailEdit);
+    form->addRow("Дата рождения:", birthDateEdit);
+    form->addRow("Телефон:",       phoneEdit);
+
+    // 3) Кнопка «Сохранить»
     QPushButton *saveBtn = new QPushButton("Сохранить", dlg);
-    vlay->addWidget(saveBtn);
+    form->addRow(saveBtn);
 
+    vlay->addLayout(form);
     dlg->setLayout(vlay);
-    dlg->resize(320, 300);
-
-    // Скрываем поле даты окончания для покупателей
-    connect(typeCombo, &QComboBox::currentTextChanged, dlg, [=](const QString &txt){
-        endEdit->setVisible(txt == "Арендатор");
-    });
-    endEdit->setVisible(typeCombo->currentText() == "Арендатор");
+    dlg->resize(360, 240);
 
     connect(saveBtn, &QPushButton::clicked, this, [=]() {
         Tenant t;
-        t.type       = typeCombo->currentText();
-        t.name       = nameEdit->text();
-        t.propertyId = propertyCombo->currentData().toInt();
-        t.monthCost  = costEdit->text().toDouble();
-        t.leaseStart = startEdit->date();
-        t.leaseEnd   = (t.type == "Покупатель" ? QDate() : endEdit->date());
+        t.type      = typeCombo->currentText();
+        t.name      = nameEdit->text().trimmed();
+        t.email     = emailEdit->text().trimmed();
+        t.birthDate = birthDateEdit->date();
+        t.phone     = phoneEdit->text().trimmed();
 
-        TenantManager mgr;
-        if (!mgr.addTenant(t)) {
-            QMessageBox::warning(dlg, "Ошибка", "Не удалось сохранить арендатора");
-        } else {
-            QMessageBox::information(dlg, "Готово", "Арендатор сохранён");
-            dlg->accept();
+        // Валидация
+        if (t.name.isEmpty()) {
+            QMessageBox::warning(dlg, "Ошибка", "Имя не может быть пустым");
+            return;
         }
+        if (t.phone.isEmpty()) {
+            QMessageBox::warning(dlg, "Ошибка", "Телефон не может быть пустым");
+            return;
+        }
+
+        TenantManager tmgr;
+        int newId = tmgr.addTenant(t);  // см. вариант A: addTenant возвращает новый ID
+        if (newId < 0) {
+            QMessageBox::warning(dlg, "Ошибка", "Не удалось сохранить арендатора");
+            return;
+        }
+
+        QMessageBox::information(dlg, "Готово", "Арендатор сохранён");
+        dlg->accept();
+
+        if (auto tv = qobject_cast<TenantView*>(centralWidget()))
+            tv->loadTenants();
     });
 
     dlg->exec();
 }
+
 
 void MainWindow::on_addTenantButton_clicked() {
     showTenantForm();
@@ -240,89 +249,180 @@ void MainWindow::showTransactionList() {
 }
 
 void MainWindow::showTransactionForm() {
-    QWidget *form = new QWidget(nullptr, Qt::Window);  // отдельное окно
-    form->setWindowTitle("Добавить/Изменить сделку");
-    QVBoxLayout *layout = new QVBoxLayout(form);
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("Добавить/Редактировать сделку");
 
-    // 1) Выбор недвижимости
-    layout->addWidget(new QLabel("Недвижимость:", form));
-    transactionPropertyCombo = new QComboBox(form);
-    {
-        PropertyManager pm;
-        auto props = pm.getAllProperties();
-        for (auto &p : props) {
-            transactionPropertyCombo->addItem(QString("%1 (ID:%2)").arg(p.name).arg(p.id), p.id);
-        }
-    }
-    layout->addWidget(transactionPropertyCombo);
+    QFormLayout *form = new QFormLayout;
+    QVBoxLayout *vlay = new QVBoxLayout(dlg);
 
-    // 2) Выбор арендатора (может быть пусто при продаже)
-    layout->addWidget(new QLabel("Арендатор (опционально):", form));
-    transactionTenantCombo = new QComboBox(form);
-    transactionTenantCombo->addItem("— нет —", QVariant(0));
-    {
-        TenantManager tm;
-        auto tenants = tm.getAllTenants();
-        for (auto &t : tenants) {
-            transactionTenantCombo->addItem(QString("%1 (ID:%2)").arg(t.name).arg(t.id), t.id);
-        }
-    }
-    layout->addWidget(transactionTenantCombo);
+    // 1) Недвижимость
+    QComboBox *propCombo = new QComboBox(dlg);
+    for (const auto &p : PropertyManager().getAllProperties())
+        propCombo->addItem(QString("%1 (ID:%2)").arg(p.name).arg(p.id), p.id);
+    form->addRow("Недвижимость:", propCombo);
+
+    // 2) Арендатор
+    QComboBox *tenantCombo = new QComboBox(dlg);
+    tenantCombo->addItem("— нет —", 0);
+    for (const auto &t : TenantManager().getAllTenants())
+        tenantCombo->addItem(QString("%1 (ID:%2)").arg(t.name).arg(t.id), t.id);
+    form->addRow("Арендатор:", tenantCombo);
 
     // 3) Тип сделки
-    layout->addWidget(new QLabel("Тип сделки:", form));
-    transactionTypeCombo = new QComboBox(form);
-    transactionTypeCombo->addItems({"Продажа", "Аренда"});
-    layout->addWidget(transactionTypeCombo);
+    QComboBox *typeCombo = new QComboBox(dlg);
+    typeCombo->addItems({"Продажа","Аренда"});
+    form->addRow("Тип сделки:", typeCombo);
 
-    // 4) Дата
-    layout->addWidget(new QLabel("Дата сделки:", form));
-    transactionDateEdit = new QDateEdit(QDate::currentDate(), form);
-    transactionDateEdit->setCalendarPopup(true);
-    layout->addWidget(transactionDateEdit);
+    // 4) Дата сделки
+    QDateEdit *dateEdit = new QDateEdit(QDate::currentDate(), dlg);
+    dateEdit->setCalendarPopup(true);
+    form->addRow("Дата:", dateEdit);
 
-    // 5) Сумма
-    layout->addWidget(new QLabel("Сумма:", form));
-    transactionAmountEdit = new QLineEdit(form);
-    layout->addWidget(transactionAmountEdit);
+    // 5) Даты аренды + сумма
+    QDateEdit *leaseStart = new QDateEdit(QDate::currentDate(), dlg);
+    leaseStart->setCalendarPopup(true);
+    QDateEdit *leaseEnd = new QDateEdit(QDate::currentDate().addMonths(1), dlg);
+    leaseEnd->setCalendarPopup(true);
+    QLabel *sumLabel = new QLabel("Сумма: 0.00", dlg);
+
+    form->addRow("Начало аренды:", leaseStart);
+    form->addRow("Окончание аренды:", leaseEnd);
+    form->addRow("К оплате:", sumLabel);
+
+    // Скрываем поля дат и суммы при «Продажа»
+    auto updateRentalFields = [=]() {
+        bool rent = (typeCombo->currentText() == "Аренда");
+        leaseStart->setVisible(rent);
+        leaseEnd->setVisible(rent);
+        sumLabel->setVisible(rent);
+    };
+    connect(typeCombo, &QComboBox::currentTextChanged, dlg, updateRentalFields);
+    updateRentalFields();
+
+    // Лямбда для пересчёта суммы аренды
+    auto recalcSum = [=]() {
+        // Получаем выбранное ID недвижимости
+        int pid = propCombo->currentData().toInt();
+        // Ищем его в менеджере, чтобы достать price
+        double rate = 0;
+        for (const auto &p : PropertyManager().getAllProperties()) {
+            if (p.id == pid) {
+                rate = p.price;
+                break;
+            }
+        }
+        // Считаем месяцы
+        int months = leaseStart->date().daysTo(leaseEnd->date()) / 30;
+        if (months < 1) months = 1;
+        double total = rate * months;
+        sumLabel->setText(QString("Сумма: %1").arg(total, 0, 'f', 2));
+    };
+
+    // Пересчитываем, когда меняется недвижимость или даты или тип
+    connect(propCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), dlg, recalcSum);
+    connect(leaseStart, &QDateEdit::dateChanged, dlg, recalcSum);
+    connect(leaseEnd, &QDateEdit::dateChanged, dlg, recalcSum);
+    connect(typeCombo, &QComboBox::currentTextChanged, dlg, recalcSum);
+    recalcSum();
 
     // 6) Кнопка «Сохранить»
-    QPushButton *saveBtn = new QPushButton("Сохранить сделку", form);
-    layout->addWidget(saveBtn);
-    connect(saveBtn, &QPushButton::clicked,
-            this, &MainWindow::on_addTransactionButton_clicked);
+    QPushButton *saveBtn = new QPushButton("Сохранить", dlg);
+    form->addRow(saveBtn);
 
-    form->setLayout(layout);
-    form->resize(300, 400);
-    form->show();
+    vlay->addLayout(form);
+    dlg->setLayout(vlay);
+    dlg->resize(400, 360);
+
+    connect(saveBtn, &QPushButton::clicked, this, [=]() {
+        Transaction t;
+        t.propertyId   = propCombo->currentData().toInt();
+        t.tenantId     = tenantCombo->currentData().toInt();
+        t.type         = typeCombo->currentText();
+        t.date         = dateEdit->date();
+        t.propertyName = propCombo->currentText().split(" (ID").first();
+        t.tenantName   = (t.tenantId > 0
+                            ? tenantCombo->currentText().split(" (ID").first()
+                            : QString("—"));
+
+        if (t.type == "Аренда") {
+            t.leaseStart = leaseStart->date();
+            t.leaseEnd   = leaseEnd->date();
+            // Парсим сумму из лейбла
+            t.amount = sumLabel->text().split(' ').last().toDouble();
+        } else {
+            bool ok;
+            double sale = QInputDialog::getDouble(
+                dlg, "Сумма продажи", "Введите сумму:", 0, 0, 1e12, 2, &ok
+                );
+            if (!ok || sale <= 0) {
+                QMessageBox::warning(dlg, "Ошибка", "Неверная сумма продажи!");
+                return;
+            }
+            t.amount = sale;
+        }
+
+        // Валидация
+        if (t.propertyId <= 0) {
+            QMessageBox::warning(dlg, "Ошибка", "Выберите недвижимость!");
+            return;
+        }
+
+        TransactionManager mgr;
+        if (mgr.addTransaction(t)) {
+            QMessageBox::information(dlg, "Готово", "Сделка сохранена");
+            dlg->accept();
+            showTransactionList();
+        } else {
+            QMessageBox::critical(dlg, "Ошибка", "Не удалось сохранить сделку");
+        }
+    });
+
+    dlg->exec();
 }
 
+
+
 void MainWindow::on_addTransactionButton_clicked() {
-    // Собираем данные
     Transaction t;
     t.propertyId = transactionPropertyCombo->currentData().toInt();
     t.tenantId   = transactionTenantCombo->currentData().toInt();
     t.type       = transactionTypeCombo->currentText();
     t.date       = transactionDateEdit->date();
-    t.amount     = transactionAmountEdit->text().toDouble();
+
+    // Заполняем поля для отображения
+    t.propertyName = transactionPropertyCombo->currentText();
+    t.tenantName   = transactionTenantCombo->currentText();
+
+    // Если аренда — рассчитываем автоматически по цене недвижимости и сроку
+    if (t.type == "Аренда") {
+        t.leaseStart = transactionLeaseStartEdit->date();
+        t.leaseEnd   = transactionLeaseEndEdit->date();
+
+        // Найдём цену из Property.price
+        double rate = 0;
+        for (auto &p : PropertyManager().getAllProperties())
+            if (p.id == t.propertyId) { rate = p.price; break; }
+
+        int months = t.leaseStart.daysTo(t.leaseEnd) / 30;
+        if (months < 1) months = 1;
+        t.amount = rate * months;
+    } else {
+        t.amount = transactionAmountEdit->text().toDouble();
+    }
 
     // Валидация
-    if (t.propertyId <= 0) {
-        QMessageBox::warning(nullptr, "Ошибка", "Выберите недвижимость!");
-        return;
-    }
-    if (t.amount <= 0.0) {
-        QMessageBox::warning(nullptr, "Ошибка", "Введите корректную сумму сделки!");
+    if (t.propertyId <= 0 || t.amount <= 0.0) {
+        QMessageBox::warning(nullptr, "Ошибка", "Проверьте недвижимость и сумму сделки");
         return;
     }
 
-    // Сохраняем
     TransactionManager mgr;
-    if (!mgr.addTransaction(t)) {
-        QMessageBox::critical(nullptr, "Ошибка", "Не удалось сохранить сделку.");
-        return;
+    if (mgr.addTransaction(t)) {
+        QMessageBox::information(nullptr, "Готово", "Сделка сохранена");
+        showTransactionList();
+    } else {
+        QMessageBox::critical(nullptr, "Ошибка", "Не удалось сохранить сделку");
     }
-
-    QMessageBox::information(nullptr, "Готово", "Сделка успешно сохранена.");
 }
+
 

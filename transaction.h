@@ -10,6 +10,11 @@ struct Transaction {
     QDate date;
     QString type;       // "Продажа" или "Аренда"
     double amount;
+    QString propertyName;
+    QString tenantName;
+
+    QDate leaseStart;
+    QDate leaseEnd;
 };
 
 #endif // TRANSACTION_H

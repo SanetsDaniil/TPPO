@@ -10,6 +10,7 @@ public:
     TransactionManager();
     bool addTransaction(const Transaction &t);
     QVector<Transaction> getAllTransactions();
+    bool removeTransaction(int transactionId);
 private:
     QSqlDatabase db;
 };

@@ -16,6 +16,7 @@ private:
     QTableWidget *table;
     QPushButton *deleteButton;
     QLineEdit *nameFilterEdit;
+    QLineEdit  *phoneFilterEdit;
     QComboBox *typeFilterCombo;
 
 private slots:

@@ -64,6 +64,9 @@ private:
     QComboBox   *transactionTypeCombo;
     QDateEdit   *transactionDateEdit;
     QLineEdit   *transactionAmountEdit;
+    QDateEdit *transactionLeaseStartEdit;
+    QDateEdit *transactionLeaseEndEdit;
+
 };
 
 #endif // MAINWINDOW_H

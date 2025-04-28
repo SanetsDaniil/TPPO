@@ -9,18 +9,17 @@
 
 struct Tenant {
     int id;
+    QString type;        // Арендатор / Покупатель
     QString name;
-    int propertyId;
-    double monthCost;
-    QDate leaseStart;
-    QDate leaseEnd;
-    QString type;
+    QString email;
+    QDate   birthDate;
+    QString phone;
 };
 
 class TenantManager {
 public:
     TenantManager();
-    bool addTenant(const Tenant& tenant);
+    int addTenant(const Tenant& tenant);
     QVector<Tenant> getAllTenants();
     QVector<Tenant> searchTenants(const QString& searchText);
 

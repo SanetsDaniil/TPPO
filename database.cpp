@@ -16,10 +16,15 @@ DatabaseManager::DatabaseManager() {
         "date DATE NOT NULL, "
         "type TEXT CHECK(type IN ('Продажа','Аренда')) NOT NULL, "
         "amount REAL NOT NULL, "
+        "lease_start DATE, "     // новая колонка
+        "lease_end DATE, "       // новая колонка
+        "property_name TEXT, "
+        "tenant_name TEXT, "
         "FOREIGN KEY(property_id) REFERENCES properties(id), "
         "FOREIGN KEY(tenant_id) REFERENCES tenants(id)"
         ")"
         );
+
      if (!ok) {
          qDebug() << "Ошибка создания таблицы transactions:" << query.lastError().text();
      }

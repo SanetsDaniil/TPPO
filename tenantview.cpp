@@ -18,6 +18,11 @@ TenantView::TenantView(QWidget *parent) : QWidget(parent) {
     nameFilterEdit->setPlaceholderText("Фильтр по имени арендатора...");
     filterLayout->addWidget(nameFilterEdit);
 
+    // Фильтр по телефону
+    phoneFilterEdit = new QLineEdit(this);
+    phoneFilterEdit->setPlaceholderText("Фильтр по телефону...");
+    filterLayout->addWidget(phoneFilterEdit);
+
     mainLayout->addLayout(filterLayout);
 
     table = new QTableWidget(this);
@@ -32,6 +37,7 @@ TenantView::TenantView(QWidget *parent) : QWidget(parent) {
 
     connect(typeFilterCombo,   &QComboBox::currentTextChanged, this, &TenantView::applyFilters);
     connect(nameFilterEdit,    &QLineEdit::textChanged,        this, &TenantView::applyFilters);
+    connect(phoneFilterEdit,   &QLineEdit::textChanged,        this, &TenantView::applyFilters);
     connect(deleteButton,      &QPushButton::clicked,          this, &TenantView::deleteTenant);
 }
 
@@ -40,37 +46,44 @@ void TenantView::loadTenants() {
     QVector<Tenant> tenants = manager.getAllTenants();
 
     table->setRowCount(tenants.size());
-    table->setColumnCount(7); // теперь 7 столбцов
-    table->setHorizontalHeaderLabels({"ID", "Тип", "Имя арендатора", "ID недвижимости", "Стоимость аренды", "Дата начала", "Дата окончания"});
+    table->setColumnCount(6);
+    table->setHorizontalHeaderLabels({"ID", "Тип", "Имя", "Email", "Дата рождения", "Телефон"});
+
     table->horizontalHeader()->setStretchLastSection(true);
 
     for (int i = 0; i < tenants.size(); ++i) {
-        table->setItem(i, 0, new QTableWidgetItem(QString::number(tenants[i].id)));
-        table->setItem(i, 1, new QTableWidgetItem(tenants[i].type));
-        table->setItem(i, 2, new QTableWidgetItem(tenants[i].name));
-        table->setItem(i, 3, new QTableWidgetItem(QString::number(tenants[i].propertyId)));
-        table->setItem(i, 4, new QTableWidgetItem(QString::number(tenants[i].monthCost, 'f', 2)));
-        table->setItem(i, 5, new QTableWidgetItem(tenants[i].leaseStart.toString("yyyy-MM-dd")));
-        table->setItem(i, 6, new QTableWidgetItem(tenants[i].leaseEnd.toString("yyyy-MM-dd")));
+        const auto &t = tenants[i];
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(t.id)));
+        table->setItem(i, 1, new QTableWidgetItem(t.type));
+        table->setItem(i, 2, new QTableWidgetItem(t.name));
+        table->setItem(i, 3, new QTableWidgetItem(t.email));
+        table->setItem(i, 4, new QTableWidgetItem(t.birthDate.toString("yyyy-MM-dd")));
+        table->setItem(i, 5, new QTableWidgetItem(t.phone));
     }
 
-    applyFilters(); // После загрузки сразу применяем фильтры
+    applyFilters();
 }
+
 
 void TenantView::applyFilters() {
     QString typeFilter = typeFilterCombo->currentText();
     QString nameFilter = nameFilterEdit->text().trimmed();
+    QString phoneFilter = phoneFilterEdit->text().trimmed();
 
     for (int i = 0; i < table->rowCount(); ++i) {
         bool visible = true;
 
         QString tenantType = table->item(i, 1)->text();
         QString tenantName = table->item(i, 2)->text();
+        QString cellPhone = table->item(i, 5)->text();
 
         if (typeFilter != "Все" && tenantType != typeFilter)
             visible = false;
 
         if (visible && !nameFilter.isEmpty() && !tenantName.contains(nameFilter, Qt::CaseInsensitive))
+            visible = false;
+
+        if (!phoneFilter.isEmpty() && !cellPhone.contains(phoneFilter, Qt::CaseInsensitive))
             visible = false;
 
         table->setRowHidden(i, !visible);
@@ -83,16 +96,24 @@ void TenantView::deleteTenant() {
         QMessageBox::warning(this, "Ошибка", "Выберите арендатора для удаления.");
         return;
     }
-
     int tenantId = table->item(row, 0)->text().toInt();
+
+    // Диалог подтверждения
+    auto ret = QMessageBox::question(
+        this, "Подтверждение",
+        "Вы уверены, что хотите удалить этого арендатора?\nСделки с ним сохранятся с его именем.",
+        QMessageBox::Yes|QMessageBox::No, QMessageBox::No
+        );
+    if (ret != QMessageBox::Yes) return;
+
     QSqlQuery query;
     query.prepare("DELETE FROM tenants WHERE id = ?");
     query.addBindValue(tenantId);
-
     if (query.exec()) {
         table->removeRow(row);
-        QMessageBox::information(this, "Удаление", "Арендатор успешно удалён.");
+        QMessageBox::information(this, "Удалено", "Арендатор удалён.");
     } else {
         QMessageBox::warning(this, "Ошибка", "Не удалось удалить арендатора.");
     }
 }
+
