@@ -3,6 +3,8 @@ release/main.o
 release/mainwindow.o
 release/propertymanager.o
 release/propertyview.o
+release/reportmanager.o
+release/sampledata.o
 release/tenantmanager.o
 release/tenantview.o
 release/transactionmanager.o

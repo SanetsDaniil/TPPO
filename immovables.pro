@@ -1,6 +1,8 @@
 QT += core gui sql
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4):
+QT += widgets
+QT += printsupport
 
 CONFIG += c++11
 
@@ -14,6 +16,8 @@ SOURCES += \
     mainwindow.cpp \
     propertymanager.cpp \
     propertyview.cpp \
+    reportmanager.cpp \
+    sampledata.cpp \
     tenantmanager.cpp \
     tenantview.cpp \
     transactionmanager.cpp \
@@ -24,6 +28,8 @@ HEADERS += \
     mainwindow.h \
     propertymanager.h \
     propertyview.h \
+    reportmanager.h \
+    sampledata.h \
     tenantmanager.h \
     tenantview.h \
     transaction.h \

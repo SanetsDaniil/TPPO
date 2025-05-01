@@ -5,23 +5,30 @@
 #include <QTableWidget>
 #include <QPushButton>
 #include <QComboBox>
+#include <QLineEdit>
+#include <QDate>
+#include <QSqlQuery>
+#include <QSqlError>
 #include "tenantmanager.h"
+#include "database.h"
 
 class TenantView : public QWidget {
     Q_OBJECT
 public:
     explicit TenantView(QWidget *parent = nullptr);
     void loadTenants();
-private:
-    QTableWidget *table;
-    QPushButton *deleteButton;
-    QLineEdit *nameFilterEdit;
-    QLineEdit  *phoneFilterEdit;
-    QComboBox *typeFilterCombo;
+    static constexpr int WARNING_DAYS = 30; // порог подсветки
 
 private slots:
     void applyFilters();
     void deleteTenant();
+
+private:
+    QTableWidget *table;
+    QPushButton *deleteButton;
+    QLineEdit *nameFilterEdit;
+    QComboBox *typeFilterCombo;
+
 };
 
 #endif // TENANTVIEW_H

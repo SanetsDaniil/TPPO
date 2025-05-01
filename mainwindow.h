@@ -34,6 +34,9 @@ private slots:
     void showTransactionList();
     void showTransactionForm();               // Шаг 1.2: форма сделки
     void on_addTransactionButton_clicked();   // Слот «Сохранить сделку»
+    void showRentalReport();
+    void showSalesReport();
+    void notifyExpiringLeases();
 private:
     void setupToolbar();
     QComboBox *editPropertyComboBox;

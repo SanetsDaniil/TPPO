@@ -7,6 +7,7 @@
 #include "database.h"
 #include "transactionview.h"
 #include "transactionmanager.h"
+#include "reportmanager.h"
 
 
 #include <QDialog>
@@ -18,7 +19,10 @@
 #include <QPushButton>
 #include <QMessageBox>
 #include <QInputDialog>
-
+#include <QtPrintSupport/QPrinter>
+#include <QFileDialog>
+#include <QHeaderView>
+#include <QTextDocument>
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -31,7 +35,11 @@ MainWindow::MainWindow(QWidget *parent) :
         QMessageBox::critical(this, "Ошибка", "Не удалось подключиться к базе данных!");
 }
 
+    PropertyManager().releaseExpiredLeases();
+
     setupToolbar();
+
+    notifyExpiringLeases();
     showPropertyList();
 
 }
@@ -51,6 +59,8 @@ void MainWindow::setupToolbar()
     QAction *viewTenantAction = new QAction("Арендаторы", this);
     QAction *viewTransactionAction = new QAction("Сделки", this);
     QAction *addTransactionAction = new QAction("Новая сделка", this);
+    QAction *rentalReportAction = new QAction("Отчёт по аренде", this);
+    QAction *salesReportAction = new QAction("Отчёт по продажам", this);
 
     toolbar->addAction(viewPropertiesAction);
     toolbar->addAction(viewTenantAction);
@@ -58,6 +68,8 @@ void MainWindow::setupToolbar()
     toolbar->addAction(addPropertyAction);
     toolbar->addAction(viewTransactionAction);
     toolbar->addAction(addTransactionAction);
+    toolbar->addAction(rentalReportAction);
+    toolbar->addAction(salesReportAction);
 
     connect(viewPropertiesAction, &QAction::triggered, this, &MainWindow::showPropertyList);
     connect(viewTenantAction,&QAction::triggered, this, &MainWindow::showTenantList);
@@ -65,7 +77,10 @@ void MainWindow::setupToolbar()
     connect(addPropertyAction, &QAction::triggered, this, &MainWindow::showPropertyForm);
     connect(viewTransactionAction, &QAction::triggered, this, &MainWindow::showTransactionList);
     connect(addTransactionAction, &QAction::triggered, this, &MainWindow::showTransactionForm);
+    connect(rentalReportAction, &QAction::triggered, this, &MainWindow::showRentalReport);
+    connect(salesReportAction, &QAction::triggered, this, &MainWindow::showSalesReport);
 }
+
 
 void MainWindow::showPropertyList()
 {
@@ -257,8 +272,9 @@ void MainWindow::showTransactionForm() {
 
     // 1) Недвижимость
     QComboBox *propCombo = new QComboBox(dlg);
-    for (const auto &p : PropertyManager().getAllProperties())
+    for (const auto &p : PropertyManager().getFreeProperties())
         propCombo->addItem(QString("%1 (ID:%2)").arg(p.name).arg(p.id), p.id);
+
     form->addRow("Недвижимость:", propCombo);
 
     // 2) Арендатор
@@ -375,6 +391,12 @@ void MainWindow::showTransactionForm() {
         } else {
             QMessageBox::critical(dlg, "Ошибка", "Не удалось сохранить сделку");
         }
+        PropertyManager pm;
+        if (t.type == "Аренда") {
+            pm.updateStatus(t.propertyId, "Занято");
+        } else { // Продажа
+            pm.updateStatus(t.propertyId, "Продано");
+        }
     });
 
     dlg->exec();
@@ -425,4 +447,204 @@ void MainWindow::on_addTransactionButton_clicked() {
     }
 }
 
+void MainWindow::showRentalReport() {
+    // Диалог отчёта
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("Отчёт по аренде");
+    QVBoxLayout *vlay = new QVBoxLayout(dlg);
 
+    // Таблица
+    QTableWidget *table = new QTableWidget(dlg);
+    vlay->addWidget(table);
+
+    // Кнопки: «Экспорт в PDF» и «Закрыть»
+    QHBoxLayout *hl = new QHBoxLayout;
+    QPushButton *exportBtn = new QPushButton("Экспорт в PDF", dlg);
+    QPushButton *closeBtn  = new QPushButton("Закрыть", dlg);
+    hl->addWidget(exportBtn);
+    hl->addStretch();
+    hl->addWidget(closeBtn);
+    vlay->addLayout(hl);
+
+    // Заполняем табличку данными
+    ReportManager rm;
+    auto rentals = rm.getRentalTransactions();
+    table->setColumnCount(6);
+    table->setHorizontalHeaderLabels(
+        {"ID", "Недвижимость", "Арендатор", "Начало", "Окончание", "Сумма"}
+        );
+    table->setRowCount(rentals.size());
+    for (int i = 0; i < rentals.size(); ++i) {
+        const auto &t = rentals[i];
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(t.id)));
+        table->setItem(i, 1, new QTableWidgetItem(t.propertyName));
+        table->setItem(i, 2, new QTableWidgetItem(t.tenantName));
+        table->setItem(i, 3, new QTableWidgetItem(t.leaseStart.toString("yyyy-MM-dd")));
+        table->setItem(i, 4, new QTableWidgetItem(t.leaseEnd.toString("yyyy-MM-dd")));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(t.amount, 'f', 2)));
+    }
+    table->resizeColumnsToContents();
+
+    // Экспорт в PDF
+    connect(exportBtn, &QPushButton::clicked, dlg, [=]() {
+        QString path = QFileDialog::getSaveFileName(
+            dlg, "Сохранить отчёт", "", "PDF-файл (*.pdf)"
+            );
+        if (path.isEmpty()) return;
+
+        // Собираем HTML таблицу
+        QString html = "<h2>Отчёт по аренде</h2>";
+        html += "<table border='1' cellspacing='0' cellpadding='4'>";
+        html += "<tr>";
+        for (int c = 0; c < table->columnCount(); ++c)
+            html += "<th>" + table->horizontalHeaderItem(c)->text() + "</th>";
+        html += "</tr>";
+        for (int r = 0; r < table->rowCount(); ++r) {
+            html += "<tr>";
+            for (int c = 0; c < table->columnCount(); ++c) {
+                html += "<td>" + table->item(r, c)->text() + "</td>";
+            }
+            html += "</tr>";
+        }
+        html += "</table>";
+
+        // Печать в PDF
+        QTextDocument doc;
+        doc.setHtml(html);
+        QPrinter printer(QPrinter::PrinterResolution);
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(path);
+        doc.print(&printer);
+
+        QMessageBox::information(dlg, "Готово", "Отчёт сохранён в PDF");
+    });
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    dlg->resize(800, 600);
+    dlg->exec();
+}
+
+void MainWindow::showSalesReport() {
+    QDialog *dlg = new QDialog(this);
+    dlg->setWindowTitle("Отчёт по продажам");
+    QVBoxLayout *vlay = new QVBoxLayout(dlg);
+
+    auto *table = new QTableWidget(dlg);
+    vlay->addWidget(table);
+
+    QHBoxLayout *hl = new QHBoxLayout;
+    auto *exportBtn = new QPushButton("Экспорт в PDF", dlg);
+    auto *closeBtn  = new QPushButton("Закрыть", dlg);
+    hl->addWidget(exportBtn);
+    hl->addStretch();
+    hl->addWidget(closeBtn);
+    vlay->addLayout(hl);
+
+    // Заполняем данными
+    ReportManager rm;
+    auto sales = rm.getSalesTransactions();
+    table->setColumnCount(6);
+    table->setHorizontalHeaderLabels(
+        {"ID","Недвижимость","Покупатель","Дата","Тип","Сумма"}
+        );
+    table->setRowCount(sales.size());
+    for (int i = 0; i < sales.size(); ++i) {
+        const auto &t = sales[i];
+        table->setItem(i, 0, new QTableWidgetItem(QString::number(t.id)));
+        table->setItem(i, 1, new QTableWidgetItem(t.propertyName));
+        table->setItem(i, 2, new QTableWidgetItem(t.tenantName));
+        table->setItem(i, 3, new QTableWidgetItem(t.date.toString("yyyy-MM-dd")));
+        table->setItem(i, 4, new QTableWidgetItem(t.type));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(t.amount,'f',2)));
+    }
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->resizeColumnsToContents();
+
+    // Экспорт PDF
+    connect(exportBtn, &QPushButton::clicked, dlg, [=]() {
+        QString path = QFileDialog::getSaveFileName(
+            dlg, "Сохранить отчёт", "", "PDF-файл (*.pdf)"
+            );
+        if (path.isEmpty()) return;
+
+        QString html = "<h2>Отчёт по продажам</h2><table border='1' cellspacing='0' cellpadding='4'><tr>";
+        for (int c = 0; c < table->columnCount(); ++c)
+            html += "<th>" + table->horizontalHeaderItem(c)->text() + "</th>";
+        html += "</tr>";
+        for (int r = 0; r < table->rowCount(); ++r) {
+            html += "<tr>";
+            for (int c = 0; c < table->columnCount(); ++c)
+                html += "<td>" + table->item(r,c)->text() + "</td>";
+            html += "</tr>";
+        }
+        html += "</table>";
+
+        QTextDocument doc;
+        doc.setHtml(html);
+        QPrinter printer(QPrinter::PrinterResolution);
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(path);
+        doc.print(&printer);
+
+        QMessageBox::information(dlg, "Готово", "Отчёт сохранён в PDF");
+    });
+
+    connect(closeBtn, &QPushButton::clicked, dlg, &QDialog::accept);
+
+    dlg->resize(800,600);
+    dlg->exec();
+}
+
+void MainWindow::notifyExpiringLeases() {
+    TenantManager tm;
+    auto tenants = tm.getAllTenants();
+
+    const int threshold = 30; // дней до окончания для уведомления
+    QDate today = QDate::currentDate();
+    QStringList soon;
+
+    auto db = DatabaseManager::instance().getDatabase();
+    for (const auto &t : tenants) {
+        if (t.type != "Арендатор")
+            continue;
+
+        // Ищем ближайшую активную аренду по этому арендатору
+        QSqlQuery q(db);
+        q.prepare(R"(
+            SELECT lease_end
+              FROM transactions
+             WHERE tenant_id = :id
+               AND type = 'Аренда'
+               AND DATE(lease_end) >= DATE('now')
+             ORDER BY lease_end ASC
+             LIMIT 1
+        )");
+        q.bindValue(":id", t.id);
+
+        if (!q.exec()) {
+            qDebug() << "Ошибка при выборке lease_end:" << q.lastError().text();
+            continue;
+        }
+        if (!q.next()) {
+            // Нет активных аренды — пропускаем
+            continue;
+        }
+
+        QDate leaseEnd = q.value(0).toDate();
+        int daysLeft = today.daysTo(leaseEnd);
+        if (daysLeft >= 0 && daysLeft <= threshold) {
+            soon << QString("%1 (ID:%2) — через %3 дн.")
+                        .arg(t.name).arg(t.id).arg(daysLeft);
+        }
+    }
+
+    if (!soon.isEmpty()) {
+        QMessageBox::information(
+            this,
+            "Скоро окончатся договоры",
+            "Договоры аренды заканчиваются у следующих клиентов:\n\n"
+                + soon.join("\n")
+            );
+    }
+}

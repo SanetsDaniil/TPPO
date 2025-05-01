@@ -41,3 +41,45 @@ QVector<Property> PropertyManager::getAllProperties() {
     }
     return properties;
 }
+
+bool PropertyManager::updateStatus(int propertyId, const QString& newStatus) {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare("UPDATE properties SET status = ? WHERE id = ?");
+    query.addBindValue(newStatus);
+    query.addBindValue(propertyId);
+    return query.exec();
+}
+
+QVector<Property> PropertyManager::getFreeProperties() {
+    QVector<Property> out;
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    query.prepare("SELECT * FROM properties WHERE status = 'Свободно'");
+    query.exec();
+    while (query.next()) {
+        Property p;
+        p.id       = query.value("id").toInt();
+        p.name     = query.value("name").toString();
+        p.type     = query.value("type").toString();
+        p.location = query.value("location").toString();
+        p.status   = query.value("status").toString();
+        p.price    = query.value("price").toDouble();
+        out.append(p);
+    }
+    return out;
+}
+
+void PropertyManager::releaseExpiredLeases() {
+    QSqlQuery query(DatabaseManager::instance().getDatabase());
+    // Для каждого property_id из transactions, если тип аренда и lease_end < сегодня
+    query.prepare(R"(
+        UPDATE properties
+        SET status = 'Свободно'
+        WHERE id IN (
+          SELECT property_id FROM transactions
+          WHERE type = 'Аренда' AND DATE(lease_end) < DATE('now')
+        )
+    )");
+    query.exec();
+}
+
+

@@ -51,6 +51,8 @@ QVector<Transaction> TransactionManager::getAllTransactions() {
         t.date       = query.value("date").toDate();
         t.type       = query.value("type").toString();
         t.amount     = query.value("amount").toDouble();
+        t.leaseStart   = query.value("lease_start").toDate();
+        t.leaseEnd     = query.value("lease_end").toDate();
         t.propertyName   = query.value("property_name").toString();
         t.tenantName     = query.value("tenant_name").toString();
         list.append(t);
